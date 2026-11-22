@@ -1,6 +1,8 @@
+import {libraryKey} from './LibrarySync';
+import Account from './Account';
 import Storybooks from './Storybooks';
 import {hasSteps, readActivities, sameActivity} from './journal.mjs';
-import React,{useState} from 'react';import{createRoot}from'react-dom/client';import{Planet,Crew}from'./art';import './style.css';
+import React,{useEffect,useState} from 'react';import{createRoot}from'react-dom/client';import{Planet,Crew}from'./art';import './style.css';
 import {agentNames as agents, activities} from "./activities.mjs";
 function PlayGuide({guide,isSaved,toggleSaved,finish}) {
   const [step,setStep] = useState(null);
@@ -34,11 +36,27 @@ function PlayGuide({guide,isSaved,toggleSaved,finish}) {
   </>;
 }
 function App() {
-  const [tab,T]=useState('探索大厅'), [sel,S]=useState(null), [guide,G]=useState(null);
+  const [tab,T]=useState(()=>window.location.hash.startsWith('#reset-password=')?'家长账号':'探索大厅'), [sel,S]=useState(null), [guide,G]=useState(null);
   const [topic,Q]=useState(''), [busy,B]=useState(false), [error,E]=useState('');
   const [minutes,setMinutes]=useState(5), [materials,setMaterials]=useState('');
-  const [logs,L]=useState(()=>readActivities('planetLogs'));
-  const [saved,setSaved]=useState(()=>readActivities('planetSaved'));
+  const [scope,setScope]=useState(null);
+  const [logs,L]=useState([]);
+  const [saved,setSaved]=useState([]);
+  useEffect(()=>{
+    L(readActivities(libraryKey(scope,'planetLogs')));
+    setSaved(readActivities(libraryKey(scope,'planetSaved')));
+  },[scope,tab]);
+  function loadLibrary(email) {
+    setScope(email);
+    L(readActivities(libraryKey(email,'planetLogs')));
+    setSaved(readActivities(libraryKey(email,'planetSaved')));
+  }
+  useEffect(()=>{
+    let active = true;
+    fetch('/api/account').then(response=>response.ok?response.json():null)
+      .catch(()=>null).then(account=>{if(active) loadLibrary(account?.email || null);});
+    return ()=>{active=false;};
+  },[]);
   const [shelf,setShelf]=useState('完成记录');
   const activity = guide && {title:guide.title, steps:guide.steps, i:sel};
   const isSaved = activity && saved.some(row=>sameActivity(row, activity));
@@ -64,15 +82,15 @@ function App() {
   }
   function toggleSaved() {
     const rows = isSaved ? saved.filter(row=>!sameActivity(row, activity)) : [activity,...saved];
-    persist('planetSaved',rows,setSaved);
+    persist(libraryKey(scope,'planetSaved'),rows,setSaved);
   }
   function finish(note) {
     const entry = {...activity,note:note.trim(),date:new Date().toLocaleDateString('zh-CN')};
-    if (persist('planetLogs',[entry,...logs],L)) {
+    if (persist(libraryKey(scope,'planetLogs'),[entry,...logs],L)) {
       S(null); setShelf('完成记录'); T('成长记录');
     }
   }
-async function generate(){B(true);E('');try{let res=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:sel,source:topic.trim(),minutes,materials:materials.trim()})});if(!res.ok){E(({429:'请求较多，请稍后再试。',503:'AI 生成服务暂不可用，请检查 DeepSeek 密钥和账户余额。',502:'暂未获得完整活动，请重新生成。'})[res.status]||'活动生成失败，请稍后再试。');return;}let data=await res.json();G(data)}catch{E('AI 服务暂未连接，可以先体验下方示例活动。')}finally{B(false)}}let explore=()=>document.getElementById('agents')?.scrollIntoView({behavior:'smooth'});return <><header><div className="bar"><div className="brand"><span>🪐</span> 小芽星球</div><nav>{['探索大厅','动画绘本','成长记录'].map((t,i)=><button className={tab===t?'active':''} onClick={()=>T(t)} key={t}>{['✦','▤','◷'][i]}　{t}</button>)}</nav><div className="parent">🐻 <b>家长空间</b></div></div></header><main>{tab==='探索大厅'?<><section className="hero"><div className="eyebrow">✧　AI 亲子启蒙空间</div><h1>小小好奇心，<br/><em>大大宇宙梦</em></h1><p>和 AI 启蒙伙伴一起，把知识变成好玩的亲子游戏。</p><button className="yellow" onClick={explore}>✦　探索启蒙星球</button><Crew/></section><section id="agents"><small>✦　LEARNING PLANETS</small><h2>启蒙智能体</h2><p>选择一颗星球，开启专属亲子启蒙之旅</p><div className="grid">{agents.map((a,i)=><button className={'card c'+i} key={a[0]} onClick={()=>open(i)}><Planet n={i}/><label>{a[1]}</label><h3>{a[0]}</h3><p>{a[2]}</p><strong>进入星球　›</strong></button>)}</div></section><section className="today"><span className="bulb">💡</span><div><small>DAILY INSPIRATION</small><h3>今日亲子灵感</h3><p>从一个颜色小游戏开始，让英语自然融入生活。</p></div><button onClick={()=>{open(0,activities[0][0])}}>看看怎么玩　›</button></section></>:tab==='动画绘本'?<Storybooks/>:<section><small>✦　GROWTH JOURNAL</small><h2>成长记录</h2>
+async function generate(){B(true);E('');try{let res=await fetch('/api/activities',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({agent:sel,source:topic.trim(),minutes,materials:materials.trim()})});if(!res.ok){E(({429:'请求较多，请稍后再试。',503:'AI 生成服务暂不可用，请检查 DeepSeek 密钥和账户余额。',502:'暂未获得完整活动，请重新生成。'})[res.status]||'活动生成失败，请稍后再试。');return;}let data=await res.json();G(data)}catch{E('AI 服务暂未连接，可以先体验下方示例活动。')}finally{B(false)}}let explore=()=>document.getElementById('agents')?.scrollIntoView({behavior:'smooth'});return <><header><div className="bar"><div className="brand"><span>🪐</span> 小芽星球</div><nav>{['探索大厅','动画绘本','成长记录'].map((t,i)=><button className={tab===t?'active':''} onClick={()=>T(t)} key={t}>{['✦','▤','◷'][i]}　{t}</button>)}</nav><button className="parent" aria-label="家长账号" onClick={()=>T('家长账号')}>🐻 <b>家长账号</b></button></div></header><main>{tab==='探索大厅'?<><section className="hero"><div className="eyebrow">✧　AI 亲子启蒙空间</div><h1>小小好奇心，<br/><em>大大宇宙梦</em></h1><p>和 AI 启蒙伙伴一起，把知识变成好玩的亲子游戏。</p><button className="yellow" onClick={explore}>✦　探索启蒙星球</button><Crew/></section><section id="agents"><small>✦　LEARNING PLANETS</small><h2>启蒙智能体</h2><p>选择一颗星球，开启专属亲子启蒙之旅</p><div className="grid">{agents.map((a,i)=><button className={'card c'+i} key={a[0]} onClick={()=>open(i)}><Planet n={i}/><label>{a[1]}</label><h3>{a[0]}</h3><p>{a[2]}</p><strong>进入星球　›</strong></button>)}</div></section><section className="today"><span className="bulb">💡</span><div><small>DAILY INSPIRATION</small><h3>今日亲子灵感</h3><p>从一个颜色小游戏开始，让英语自然融入生活。</p></div><button onClick={()=>{open(0,activities[0][0])}}>看看怎么玩　›</button></section></>:tab==='动画绘本'?<Storybooks key={scope} scope={scope}/>:tab==='家长账号'?<Account onAccount={loadLibrary}/>:<section><small>✦　GROWTH JOURNAL</small><h2>成长记录</h2>
 <div className="journal-tabs" aria-label="记录类型">
   {['完成记录','我的收藏'].map(name=><button key={name} aria-pressed={shelf===name} onClick={()=>setShelf(name)}>
     {name} · {name==='完成记录'?logs.length:saved.length}

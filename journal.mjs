@@ -8,7 +8,7 @@ export function readActivities(key) {
     const rows = JSON.parse(localStorage.getItem(key) || '[]');
     return Array.isArray(rows) ? rows.filter(row =>
       typeof row?.title === 'string' && Number.isInteger(row.i) && row.i >= 0 && row.i < 4 &&
-      (key !== 'planetSaved' || hasSteps(row))) : [];
+      (!key.endsWith('planetSaved') || hasSteps(row))) : [];
   } catch {
     return [];
   }

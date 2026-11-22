@@ -2,7 +2,7 @@ FROM node:22-alpine AS frontend
 WORKDIR /web
 COPY package*.json ./
 RUN npm install
-COPY index.html activities.mjs journal.mjs src.jsx Storybooks.jsx art.jsx style.css ./
+COPY index.html activities.mjs journal.mjs src.jsx Account.jsx LibrarySync.jsx Storybooks.jsx art.jsx style.css ./
 RUN npm run build
 FROM maven:3.9-eclipse-temurin-17 AS backend
 WORKDIR /app

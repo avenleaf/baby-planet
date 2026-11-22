@@ -27,3 +27,11 @@ mvn -f backend/pom.xml package
 ```
 
 测试通过 Spring MVC 提交请求，验证非法时长被拒绝、符合格式的模型结果经 MyBatis-Plus 写入 MySQL，以及读取的中文步骤与原文一致。模型传输使用测试替身，无需模型密钥；测试写入在事务结束时回滚。
+
+## 二期数据库与家长账号测试
+
+新建 MySQL 数据库后，启动应用即可由 Flyway 创建一期教案表及二期账号表。已存在一期教案表的数据库，先备份并核对库名和表结构，再为首次升级设置 `DB_BASELINE_ON_MIGRATE=true`。确认 `flyway_schema_history` 记录了全部迁移后，撤销该设置。迁移账号应具备创建表和维护迁移记录所需权限，可通过 `SPRING_FLYWAY_USER` 与 `SPRING_FLYWAY_PASSWORD` 单独配置。
+
+如需运行 `SchemaMigrationTest`，额外设置 `PLANET_TEST_FRESH_URL`、`PLANET_TEST_LEGACY_URL`，分别指向两个独立、可写的空库。测试会在后一数据库创建一期样例并执行升级。每次重跑使用新的测试库。
+
+家长账号公开上线前需使用 HTTPS，并设置 `ACCOUNT_SECURE_COOKIE=true`。重置邮件通过 `SPRING_MAIL_HOST`、`SPRING_MAIL_PORT`、`SPRING_MAIL_USERNAME`、`SPRING_MAIL_PASSWORD` 和邮件服务所需的 SMTP TLS 配置接入。设置 `PLANET_ACCOUNT_RESET_ORIGIN` 为站点 HTTPS 根地址，`PLANET_ACCOUNT_MAIL_FROM` 为发件地址。账号提交限额默认按连接来源生效，反向代理部署时需由可信代理提供真实客户端地址并验收。
