@@ -17,3 +17,13 @@ docker compose up --build -d
 ## 前端开发
 
 运行 npm install 和 npm run dev。Vite 将 /api 转发至本机 8080。npm run build 生成 dist。Docker 构建会把前端产物嵌入 Spring Boot，使网页与 API 同源。
+
+## 后端数据库集成测试
+
+使用 Java 17、Maven 和独立的 MySQL 8 测试库。在运行 Maven 的终端设置 `DB_URL`、`DB_USER`、`DB_PASSWORD`，再设置 `PLANET_TEST_DB=true`。数据库用户需要在该测试库建表和读写数据的权限。普通构建默认跳过这项数据库测试。
+
+```sh
+mvn -f backend/pom.xml package
+```
+
+测试通过 Spring MVC 提交请求，验证非法时长被拒绝、符合格式的模型结果经 MyBatis-Plus 写入 MySQL，以及读取的中文步骤与原文一致。模型传输使用测试替身，无需模型密钥；测试写入在事务结束时回滚。
